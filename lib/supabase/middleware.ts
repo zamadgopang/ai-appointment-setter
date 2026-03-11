@@ -1,6 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Routes that require authentication
+const protectedRoutes = ['/agent-setup', '/conversations', '/analytics', '/knowledge', '/settings']
+
+// Routes that are only for unauthenticated users
+const authRoutes = ['/auth/login', '/auth/sign-up']
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -29,8 +35,31 @@ export async function updateSession(request: NextRequest) {
     },
   )
 
-  // Refresh session if expired
-  await supabase.auth.getUser()
+  // Refresh session and get user
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const pathname = request.nextUrl.pathname
+
+  // Redirect unauthenticated users from protected routes to login
+  const isProtectedRoute = protectedRoutes.some((route) =>
+    pathname.startsWith(route)
+  )
+  if (isProtectedRoute && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/login'
+    url.searchParams.set('next', pathname)
+    return NextResponse.redirect(url)
+  }
+
+  // Redirect authenticated users from auth routes to dashboard
+  const isAuthRoute = authRoutes.some((route) => pathname.startsWith(route))
+  if (isAuthRoute && user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/agent-setup'
+    return NextResponse.redirect(url)
+  }
 
   return supabaseResponse
 }
