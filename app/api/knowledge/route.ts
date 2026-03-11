@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+// Demo tenant UUID - in production this would come from auth session
+const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001'
+const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000'
+
 export async function POST(req: Request) {
   try {
     const { fileName, content } = await req.json()
@@ -14,9 +18,9 @@ export async function POST(req: Request) {
 
     const supabase = await createClient()
 
-    // For demo purposes, use a placeholder tenant ID
+    // For demo purposes, use a valid UUID tenant ID
     // In production, this would come from the authenticated user's session
-    const tenantId = 'demo-tenant'
+    const tenantId = DEMO_TENANT_ID
 
     // First, ensure we have a tenant record (for demo purposes)
     const { data: existingTenant } = await supabase
@@ -30,7 +34,7 @@ export async function POST(req: Request) {
       // In production, tenants would be created during user signup
       const { error: tenantError } = await supabase.from('tenants').insert({
         id: tenantId,
-        user_id: '00000000-0000-0000-0000-000000000000', // Placeholder
+        user_id: DEMO_USER_ID,
         name: 'Demo Tenant',
         plan_type: 'managed',
       })
@@ -117,7 +121,7 @@ export async function DELETE(req: Request) {
 export async function GET() {
   try {
     const supabase = await createClient()
-    const tenantId = 'demo-tenant'
+    const tenantId = DEMO_TENANT_ID
 
     const { data, error } = await supabase
       .from('business_knowledge')
