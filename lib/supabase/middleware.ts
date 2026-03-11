@@ -29,19 +29,8 @@ export async function updateSession(request: NextRequest) {
     },
   )
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  // Protect dashboard routes
-  if (
-    request.nextUrl.pathname.startsWith('/dashboard') &&
-    !user
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
-  }
+  // Refresh session if expired
+  await supabase.auth.getUser()
 
   return supabaseResponse
 }
