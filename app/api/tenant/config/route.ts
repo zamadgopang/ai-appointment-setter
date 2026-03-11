@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+// Demo tenant UUID - in production this would come from auth session
+const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001'
+
 export async function POST(req: Request) {
   try {
     const { planType, apiProvider, apiKey } = await req.json()
 
     const supabase = await createClient()
-    const tenantId = 'demo-tenant'
+    const tenantId = DEMO_TENANT_ID
 
     // Update tenant configuration
     const { error } = await supabase

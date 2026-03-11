@@ -26,35 +26,14 @@ async function retrieveKnowledge(
 }
 
 export async function POST(req: Request) {
-  const { messages } = await req.json()
+  try {
+    const { messages } = await req.json()
 
-  // For demo purposes, use a default tenant ID
-  // In production, this would come from auth session
-  const tenantId = 'demo-tenant'
+    // For demo purposes, skip knowledge retrieval to avoid tenant ID issues
+    // In production, this would come from auth session
+    const context = ''
 
-  // Get the last user message for RAG
-  const lastUserMessage = messages
-    .filter((m: { role: string }) => m.role === 'user')
-    .pop()
-
-  let context = ''
-
-  if (lastUserMessage) {
-    // Extract text from message parts
-    const userQuery = lastUserMessage.parts
-      ?.filter((p: { type: string }) => p.type === 'text')
-      .map((p: { text: string }) => p.text)
-      .join(' ')
-
-    if (userQuery) {
-      const relevantDocs = await retrieveKnowledge(userQuery, tenantId)
-      if (relevantDocs.length > 0) {
-        context = `\n\nRelevant information from knowledge base:\n${relevantDocs.join('\n\n')}`
-      }
-    }
-  }
-
-  const systemPrompt = `You are a helpful AI appointment setter assistant. Your role is to:
+    const systemPrompt = `You are a helpful AI appointment setter assistant. Your role is to:
 1. Answer questions about the business using the provided knowledge base
 2. Help schedule appointments when requested
 3. Be professional, friendly, and concise
@@ -63,57 +42,82 @@ ${context}
 
 If you don't have specific information to answer a question, politely let the user know and offer to help with something else.`
 
-  const result = streamText({
-    model: 'openai/gpt-4o-mini',
-    system: systemPrompt,
-    messages: await convertToModelMessages(messages),
-    tools: {
-      scheduleAppointment: tool({
-        description:
-          'Schedule an appointment for the user. Use this when the user wants to book a meeting or appointment.',
-        inputSchema: z.object({
-          date: z.string().describe('The preferred date for the appointment'),
-          time: z.string().describe('The preferred time for the appointment'),
-          name: z.string().describe('Name of the person booking'),
-          email: z.string().email().describe('Email of the person booking'),
-          purpose: z
-            .string()
-            .describe('Purpose or reason for the appointment'),
+    const result = streamText({
+      model: 'openai/gpt-4o-mini',
+      system: systemPrompt,
+      messages: await convertToModelMessages(messages),
+      tools: {
+        scheduleAppointment: tool({
+          description:
+            'Schedule an appointment for the user. Use this when the user wants to book a meeting or appointment.',
+          inputSchema: z.object({
+            date: z.string().describe('The preferred date for the appointment'),
+            time: z.string().describe('The preferred time for the appointment'),
+            name: z.string().describe('Name of the person booking'),
+            email: z.string().email().describe('Email of the person booking'),
+            purpose: z
+              .string()
+              .describe('Purpose or reason for the appointment'),
+          }),
+          execute: async ({ date, time, name, email, purpose }) => {
+            // In production, this would integrate with Google Calendar via MCP
+            // For now, return a confirmation
+            return {
+              success: true,
+              message: `Appointment scheduled for ${name} on ${date} at ${time}. Purpose: ${purpose}. Confirmation sent to ${email}.`,
+              appointmentId: `apt_${Date.now()}`,
+            }
+          },
         }),
-        execute: async ({ date, time, name, email, purpose }) => {
-          // In production, this would integrate with Google Calendar via MCP
-          // For now, return a confirmation
-          return {
-            success: true,
-            message: `Appointment scheduled for ${name} on ${date} at ${time}. Purpose: ${purpose}. Confirmation sent to ${email}.`,
-            appointmentId: `apt_${Date.now()}`,
-          }
-        },
-      }),
-      checkAvailability: tool({
-        description:
-          'Check available time slots for appointments on a specific date.',
-        inputSchema: z.object({
-          date: z.string().describe('The date to check availability for'),
+        checkAvailability: tool({
+          description:
+            'Check available time slots for appointments on a specific date.',
+          inputSchema: z.object({
+            date: z.string().describe('The date to check availability for'),
+          }),
+          execute: async ({ date }) => {
+            // In production, this would check Google Calendar
+            // For demo, return mock availability
+            return {
+              date,
+              availableSlots: [
+                '9:00 AM',
+                '10:00 AM',
+                '11:00 AM',
+                '2:00 PM',
+                '3:00 PM',
+                '4:00 PM',
+              ],
+            }
+          },
         }),
-        execute: async ({ date }) => {
-          // In production, this would check Google Calendar
-          // For demo, return mock availability
-          return {
-            date,
-            availableSlots: [
-              '9:00 AM',
-              '10:00 AM',
-              '11:00 AM',
-              '2:00 PM',
-              '3:00 PM',
-              '4:00 PM',
-            ],
-          }
-        },
-      }),
-    },
-  })
+      },
+    })
 
-  return result.toUIMessageStreamResponse()
+    return result.toUIMessageStreamResponse()
+  } catch (error) {
+    console.error('Chat API error:', error)
+
+    // Check if it's an AI Gateway billing error
+    const errorMessage =
+      error instanceof Error ? error.message : 'Unknown error'
+    if (
+      errorMessage.includes('credit card') ||
+      errorMessage.includes('customer_verification')
+    ) {
+      return Response.json(
+        {
+          error:
+            'AI service requires account verification. Please add a credit card to your Vercel account to unlock free AI credits.',
+          type: 'billing_required',
+        },
+        { status: 402 }
+      )
+    }
+
+    return Response.json(
+      { error: 'An error occurred while processing your request.' },
+      { status: 500 }
+    )
+  }
 }
