@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 export async function GET() {
   try {
     const supabase = await createClient()
-    const tenantId = 'demo-tenant'
+    const tenantId = DEMO_TENANT_ID
 
     const { data, error } = await supabase
       .from('tenants')
