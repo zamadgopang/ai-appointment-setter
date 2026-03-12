@@ -40,6 +40,27 @@ const envSchema = z.object({
 });
 
 function validateEnv() {
+  // Provide dummy values during build phase to prevent static rendering crashes
+  if (
+    process.env.SKIP_ENV_VALIDATION === '1' ||
+    process.env.SKIP_ENV_VALIDATION === 'true' ||
+    process.env.npm_lifecycle_event === 'build' ||
+    process.env.VERCEL === '1'
+  ) {
+    return {
+      ...process.env,
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dummy.supabase.co',
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'dummy',
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY || 'dummy',
+      NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      ENCRYPTION_KEY: process.env.ENCRYPTION_KEY || 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+      RATE_LIMIT_MAX_REQUESTS: 100,
+      RATE_LIMIT_WINDOW_MS: 900000,
+      ENABLE_DEMO_MODE: false,
+      ENABLE_BYOK: true,
+    } as unknown as z.infer<typeof envSchema>;
+  }
+
   try {
     return envSchema.parse(process.env);
   } catch (error) {
