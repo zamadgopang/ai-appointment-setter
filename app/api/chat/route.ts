@@ -1,4 +1,5 @@
 import { streamText, convertToModelMessages, tool } from 'ai'
+import { createOpenAI } from '@ai-sdk/openai'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 
@@ -7,6 +8,20 @@ function isValidUUID(str: string): boolean {
   const uuidRegex =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   return uuidRegex.test(str)
+}
+
+// Create OpenAI provider instance
+function getOpenAIModel() {
+  const apiKey = process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    throw new Error('OPENAI_API_KEY environment variable is not set')
+  }
+  
+  const openai = createOpenAI({
+    apiKey,
+  })
+  
+  return openai('gpt-4o-mini')
 }
 
 // RAG: Retrieve relevant knowledge from database
@@ -76,7 +91,7 @@ ${context}
 If you don't have specific information to answer a question, politely let the user know and offer to help with something else.`
 
   const result = streamText({
-    model: 'openai/gpt-4o-mini',
+    model: getOpenAIModel(),
     system: systemPrompt,
     messages: await convertToModelMessages(messages),
     tools: {

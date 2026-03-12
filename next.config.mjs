@@ -19,6 +19,12 @@ const nextConfig = {
         hostname: '**.supabase.co',
       },
     ],
+    // Type errors should be caught during CI/CD, not during production build
+    ignoreBuildErrors: false,
+  },
+  images: {
+    // Enable image optimization in production
+    unoptimized: false,
   },
   turbopack: {
     root: __dirname,
@@ -26,6 +32,7 @@ const nextConfig = {
   // Enable standalone output for Docker
   output: 'standalone',
   // Security headers
+  // Security headers for production
   async headers() {
     return [
       {
@@ -34,6 +41,7 @@ const nextConfig = {
           {
             key: 'X-Frame-Options',
             value: 'SAMEORIGIN',
+            value: 'DENY',
           },
           {
             key: 'X-Content-Type-Options',
@@ -79,6 +87,25 @@ const nextConfig = {
         source: '/knowledge',
         destination: '/agent-setup',
         permanent: true,
+      // Allow embedding for the chat widget (remove X-Frame-Options)
+      {
+        source: '/api/widget/:path*',
+        headers: [
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
+          },
+        ],
+      },
+    ]
+  },
+  // Redirect rules
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/agent-setup',
+        permanent: false,
       },
     ]
   },

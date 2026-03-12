@@ -1,6 +1,7 @@
 {
-  "name": "my-project",
-  "version": "0.1.0",
+  "name": "ai-appointment-setter",
+  "version": "1.0.0",
+  "description": "AI-powered appointment scheduling assistant with knowledge base, calendar integration, and embeddable chat widget",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -18,8 +19,10 @@
     "docker:run": "docker run -p 3000:3000 --env-file .env.local ai-appointment-setter",
     "docker:compose": "docker-compose up -d",
     "docker:down": "docker-compose down"
+    "lint": "next lint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.41",
     "@ai-sdk/react": "^3.0.118",
     "@hookform/resolvers": "^3.9.1",
     "@radix-ui/react-accordion": "1.2.12",
