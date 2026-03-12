@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { KnowledgeBaseCard } from '@/components/agent/knowledge-base-card'
@@ -12,7 +13,7 @@ import { ChatWidget } from '@/components/agent/chat-widget'
 const VALID_TABS = ['knowledge', 'calendar', 'api', 'widget'] as const
 type TabValue = typeof VALID_TABS[number]
 
-export default function AgentSetupPage() {
+function AgentSetupContent() {
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
   const defaultTab: TabValue = VALID_TABS.includes(tabParam as TabValue)
@@ -25,17 +26,7 @@ export default function AgentSetupPage() {
   const [showWidget, setShowWidget] = React.useState(false)
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-balance">
-          Agent Setup
-        </h1>
-        <p className="text-muted-foreground">
-          Configure your AI appointment setter with knowledge base, calendar
-          integration, and chat widget settings.
-        </p>
-      </div>
-
+    <>
       <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
@@ -68,6 +59,26 @@ export default function AgentSetupPage() {
       {showWidget && (
         <ChatWidget greeting={greeting} onClose={() => setShowWidget(false)} />
       )}
+    </>
+  )
+}
+
+export default function AgentSetupPage() {
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight text-balance">
+          Agent Setup
+        </h1>
+        <p className="text-muted-foreground">
+          Configure your AI appointment setter with knowledge base, calendar
+          integration, and chat widget settings.
+        </p>
+      </div>
+
+      <Suspense fallback={<div className="text-muted-foreground">Loading...</div>}>
+        <AgentSetupContent />
+      </Suspense>
     </div>
   )
 }
