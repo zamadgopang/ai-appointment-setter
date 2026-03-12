@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { requireAuth, getDemoUser } from '@/lib/auth'
 import { knowledgeDocumentSchema, uuidSchema } from '@/lib/validations'
 import { rateLimit } from '@/lib/rate-limit'
@@ -10,11 +11,13 @@ export async function POST(req: NextRequest) {
     // Authentication
     let tenantId: string
     let userId: string
+    let useAdmin = false
 
     if (env.ENABLE_DEMO_MODE) {
       const demo = getDemoUser()
       tenantId = demo.tenantId
       userId = demo.id
+      useAdmin = true  // Use admin client to bypass RLS in demo mode
     } else {
       const { error, tenantId: authTenantId, user } = await requireAuth(req)
       if (error) return error
@@ -42,7 +45,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const validatedData = knowledgeDocumentSchema.parse(body)
 
-    const supabase = await createClient()
+    // Use admin client in demo mode to bypass RLS
+    const supabase = useAdmin ? createAdminClient() : await createClient()
 
     // Insert the knowledge document
     const { data, error } = await supabase
@@ -91,9 +95,11 @@ export async function DELETE(req: NextRequest) {
   try {
     // Authentication
     let tenantId: string
+    let useAdmin = false
 
     if (env.ENABLE_DEMO_MODE) {
       tenantId = getDemoUser().tenantId
+      useAdmin = true
     } else {
       const { error, tenantId: authTenantId } = await requireAuth(req)
       if (error) return error
@@ -113,7 +119,7 @@ export async function DELETE(req: NextRequest) {
     // Validate UUID format
     const validatedId = uuidSchema.parse(id)
 
-    const supabase = await createClient()
+    const supabase = useAdmin ? createAdminClient() : await createClient()
 
     // Delete only if owned by the tenant
     const { error } = await supabase
@@ -155,16 +161,18 @@ export async function GET(req: NextRequest) {
   try {
     // Authentication
     let tenantId: string
+    let useAdmin = false
 
     if (env.ENABLE_DEMO_MODE) {
       tenantId = getDemoUser().tenantId
+      useAdmin = true
     } else {
       const { error, tenantId: authTenantId } = await requireAuth(req)
       if (error) return error
       tenantId = authTenantId!
     }
 
-    const supabase = await createClient()
+    const supabase = useAdmin ? createAdminClient() : await createClient()
 
     const { data, error } = await supabase
       .from('business_knowledge')

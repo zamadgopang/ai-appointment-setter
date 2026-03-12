@@ -81,13 +81,6 @@ jobs:
         run: npm test
         if: always()
 
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        if: always()
-        with:
-          files: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
 
   docker:
     name: Build Docker Image

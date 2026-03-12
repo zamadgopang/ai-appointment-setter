@@ -8,6 +8,9 @@ VALUES (
   'Hi! I can help you schedule appointments. What can I assist you with today?'
 ) ON CONFLICT (id) DO NOTHING;
 
+-- Delete existing demo business knowledge to avoid duplicates
+DELETE FROM business_knowledge WHERE tenant_id = '00000000-0000-0000-0000-000000000001';
+
 -- Insert sample business knowledge for demo
 INSERT INTO business_knowledge (tenant_id, file_name, content, file_size, file_type)
 VALUES (
@@ -28,4 +31,4 @@ VALUES (
   'Cancellation Policy: Please provide at least 24 hours notice for cancellations. Late cancellations may be subject to a fee.',
   150,
   'text/plain'
-) ON CONFLICT DO NOTHING;
+);

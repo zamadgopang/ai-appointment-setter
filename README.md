@@ -15,7 +15,7 @@ An intelligent appointment scheduling assistant powered by AI that integrates wi
 
 ## 🛠️ Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
+- **Framework**: Next.js 16.1.6 (App Router)
 - **UI**: React 19, Tailwind CSS, Shadcn/UI
 - **Database**: Supabase (PostgreSQL)
 - **Auth**: Supabase Auth (SSR)

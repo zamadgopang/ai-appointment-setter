@@ -30,7 +30,7 @@ export function rateLimit(
   const now = Date.now();
   const record = store.get(identifier);
 
-  // Clean up expired entries
+  // Clean up expired entries opportunistically
   if (record && now > record.resetTime) {
     store.delete(identifier);
   }
@@ -81,7 +81,8 @@ export function resetRateLimit(identifier: string): void {
 }
 
 /**
- * Clean up expired entries (call periodically)
+ * Clean up expired entries opportunistically during rate limit checks
+ * No need for setInterval in serverless environments
  */
 export function cleanupExpiredEntries(): void {
   const now = Date.now();
@@ -91,6 +92,3 @@ export function cleanupExpiredEntries(): void {
     }
   }
 }
-
-// Clean up every 5 minutes
-setInterval(cleanupExpiredEntries, 5 * 60 * 1000);

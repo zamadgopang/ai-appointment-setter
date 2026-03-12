@@ -19,7 +19,16 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
   // Encryption
-  ENCRYPTION_KEY: z.string().min(32),
+  ENCRYPTION_KEY: z.string().refine((value) => {
+    try {
+      const buffer = Buffer.from(value, 'base64');
+      return buffer.length === 32;
+    } catch {
+      return false;
+    }
+  }, {
+    message: 'ENCRYPTION_KEY must be a base64-encoded 32-byte key for AES-256-GCM',
+  }),
 
   // Rate Limiting
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100),

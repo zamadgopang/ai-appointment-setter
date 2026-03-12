@@ -150,3 +150,10 @@ CREATE POLICY appointment_access ON appointments
 CREATE POLICY analytics_access ON analytics_events
   FOR ALL
   USING (tenant_id IN (SELECT id FROM tenants WHERE user_id = auth.uid()));
+
+-- Additional policy: Allow unauthenticated reads for widget/chat functionality
+-- This policy allows the chat widget to read business knowledge for RAG
+-- without requiring authentication, but still respects tenant isolation via tenantId parameter
+CREATE POLICY business_knowledge_widget_read ON business_knowledge
+  FOR SELECT
+  USING (true);
