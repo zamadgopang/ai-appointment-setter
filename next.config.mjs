@@ -23,6 +23,8 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Enable standalone output for Docker
+  output: 'standalone',
   // Security headers
   async headers() {
     return [

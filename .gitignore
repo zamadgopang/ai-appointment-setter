@@ -8,3 +8,33 @@ node_modules/
 .next/
 .env*.local
 .DS_Store
+# Environment files
+.env
+.env.production
+
+# Logs
+logs/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temporary files
+tmp/
+temp/
+/tmp
+*.backup
+*.bak
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Testing
+coverage/
+.nyc_output/
