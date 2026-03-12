@@ -31,7 +31,9 @@ function getMessageText(message: { parts?: Array<{ type: string; text?: string }
 
 export function ChatWidget({ greeting, onClose }: ChatWidgetProps) {
   const [input, setInput] = React.useState('')
-  const scrollRef = React.useRef<HTMLDivElement>(null)
+  // Ref on a dedicated div at the bottom of the message list — scroll into view on new messages.
+  // Using a plain div ref instead of the ScrollArea wrapper avoids the overflow:hidden problem.
+  const messagesEndRef = React.useRef<HTMLDivElement>(null)
 
   const { messages, sendMessage, status } = useChat({
     transport: new DefaultChatTransport({ api: '/api/chat' }),
@@ -47,9 +49,7 @@ export function ChatWidget({ greeting, onClose }: ChatWidgetProps) {
   }
 
   React.useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   return (
@@ -79,7 +79,7 @@ export function ChatWidget({ greeting, onClose }: ChatWidgetProps) {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="h-80" ref={scrollRef}>
+      <ScrollArea className="h-80">
         <div className="flex flex-col gap-4 p-4">
           {/* Greeting */}
           <div className="flex gap-3">
@@ -143,6 +143,8 @@ export function ChatWidget({ greeting, onClose }: ChatWidgetProps) {
               </div>
             </div>
           )}
+          {/* Anchor div for auto-scroll */}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 

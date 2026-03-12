@@ -44,54 +44,16 @@ export async function POST(req: NextRequest) {
     // Parse and validate request body
     const body = await req.json()
     const validatedData = knowledgeDocumentSchema.parse(body)
-// Demo tenant UUID - in production this would come from auth session
-const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001'
-const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000'
-
-// Maximum file size in bytes (10MB)
-const MAX_CONTENT_SIZE = 10 * 1024 * 1024
-
-export async function POST(req: Request) {
-  try {
-    const body = await req.json()
-    const { fileName, content } = body
-
-    // Validate required fields
-    if (!fileName || typeof fileName !== 'string') {
-      return NextResponse.json(
-        { error: 'fileName is required and must be a string' },
-        { status: 400 }
-      )
-    }
-
-    if (!content || typeof content !== 'string') {
-      return NextResponse.json(
-        { error: 'content is required and must be a string' },
-        { status: 400 }
-      )
-    }
-
-    // Validate file size
-    if (content.length > MAX_CONTENT_SIZE) {
-      return NextResponse.json(
-        { error: 'Content exceeds maximum size of 10MB' },
-        { status: 400 }
-      )
-    }
-
-    // Sanitize filename
-    const sanitizedFileName = fileName
-      .replace(/[^a-zA-Z0-9._-]/g, '_')
-      .substring(0, 255)
-
-    const supabase = await createClient()
-
-    // For demo purposes, use a valid UUID tenant ID
-    // In production, this would come from the authenticated user's session
-    const tenantId = DEMO_TENANT_ID
 
     // Use admin client in demo mode to bypass RLS
     const supabase = useAdmin ? createAdminClient() : await createClient()
+
+    // Ensure demo tenant exists before inserting documents
+    if (useAdmin) {
+      await supabase
+        .from('tenants')
+        .upsert({ id: tenantId, name: 'Demo Business' }, { onConflict: 'id', ignoreDuplicates: true })
+    }
 
     // Insert the knowledge document
     const { data, error } = await supabase
@@ -100,12 +62,10 @@ export async function POST(req: Request) {
         tenant_id: tenantId,
         file_name: validatedData.fileName,
         content: validatedData.content,
-        file_size: validatedData.fileSize,
-        file_type: validatedData.fileType,
-        file_name: sanitizedFileName,
-        content: content,
+        file_size: validatedData.fileSize ?? null,
+        file_type: validatedData.fileType ?? null,
       })
-      .select('id, file_name, created_at')
+      .select('id, file_name, file_size, file_type, created_at')
       .single()
 
     if (error) {
@@ -131,15 +91,13 @@ export async function POST(req: Request) {
       )
     }
 
-    
-    // Handle JSON parse errors
     if (error instanceof SyntaxError) {
       return NextResponse.json(
         { error: 'Invalid JSON in request body' },
         { status: 400 }
       )
     }
-    
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -148,16 +106,7 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: NextRequest) {
-// Helper to validate UUID format
-function isValidUUID(str: string): boolean {
-  const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-  return uuidRegex.test(str)
-}
-
-export async function DELETE(req: Request) {
   try {
-    // Authentication
     let tenantId: string
     let useAdmin = false
 
@@ -180,21 +129,10 @@ export async function DELETE(req: Request) {
       )
     }
 
-    // Validate UUID format
     const validatedId = uuidSchema.parse(id)
-
     const supabase = useAdmin ? createAdminClient() : await createClient()
-    // Validate UUID format to prevent injection
-    if (!isValidUUID(id)) {
-      return NextResponse.json(
-        { error: 'Invalid document ID format' },
-        { status: 400 }
-      )
-    }
 
-    const supabase = await createClient()
-
-    // Delete only if owned by the tenant
+    // Delete only if document belongs to this tenant
     const { error } = await supabase
       .from('business_knowledge')
       .delete()
@@ -232,7 +170,6 @@ export async function DELETE(req: Request) {
 
 export async function GET(req: NextRequest) {
   try {
-    // Authentication
     let tenantId: string
     let useAdmin = false
 

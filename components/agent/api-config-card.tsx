@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { KeyIcon, EyeIcon, EyeOffIcon, CheckIcon } from 'lucide-react'
+import { KeyIcon, EyeIcon, EyeOffIcon, CheckIcon, Loader2Icon, AlertCircleIcon } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -27,24 +27,82 @@ export function ApiConfigCard() {
   const [apiKey, setApiKey] = React.useState('')
   const [showApiKey, setShowApiKey] = React.useState(false)
   const [isSaved, setIsSaved] = React.useState(false)
+  const [isSaving, setIsSaving] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(true)
+  const [hasExistingKey, setHasExistingKey] = React.useState(false)
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null)
+
+  // Load existing config on mount
+  React.useEffect(() => {
+    async function loadConfig() {
+      try {
+        const res = await fetch('/api/tenant/config')
+        if (!res.ok) return
+        const data = await res.json()
+        const cfg = data.config
+        if (cfg?.plan_type === 'free' || cfg?.plan_type === 'starter') {
+          setPlanType('managed')
+        } else if (cfg?.plan_type) {
+          setPlanType('byok')
+        }
+        if (cfg?.api_provider) setProvider(cfg.api_provider)
+        if (cfg?.hasApiKey) setHasExistingKey(true)
+      } catch {
+        // Config load failure is non-critical; use defaults
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    loadConfig()
+  }, [])
 
   const handleSave = async () => {
-    // Save API configuration
+    setErrorMessage(null)
+
+    // Validate BYOK key is provided
+    if (planType === 'byok' && !apiKey.trim() && !hasExistingKey) {
+      setErrorMessage('Please enter your API key before saving.')
+      return
+    }
+
+    setIsSaving(true)
     try {
-      await fetch('/api/tenant/config', {
-        method: 'POST',
+      const res = await fetch('/api/tenant/config', {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          planType,
-          apiProvider: planType === 'byok' ? provider : null,
-          apiKey: planType === 'byok' ? apiKey : null,
+          planType: planType === 'managed' ? 'starter' : 'professional',
+          apiProvider: planType === 'byok' ? provider : undefined,
+          apiKey: planType === 'byok' && apiKey.trim() ? apiKey.trim() : undefined,
         }),
       })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.error ?? 'Save failed')
+      }
+
       setIsSaved(true)
+      if (planType === 'byok' && apiKey.trim()) {
+        setHasExistingKey(true)
+        setApiKey('')
+      }
       setTimeout(() => setIsSaved(false), 2000)
-    } catch (error) {
-      console.error('Failed to save configuration:', error)
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to save configuration. Please try again.')
+    } finally {
+      setIsSaving(false)
     }
+  }
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center justify-center py-10">
+          <Loader2Icon className="size-5 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
@@ -57,6 +115,21 @@ export function ApiConfigCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Error Banner */}
+        {errorMessage && (
+          <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+            <AlertCircleIcon className="size-4 mt-0.5 shrink-0" />
+            <span>{errorMessage}</span>
+            <button
+              className="ml-auto shrink-0 opacity-70 hover:opacity-100"
+              onClick={() => setErrorMessage(null)}
+              aria-label="Dismiss error"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
         {/* Plan Type Selection */}
         <div className="space-y-3">
           <Label>Service Plan</Label>
@@ -124,7 +197,14 @@ export function ApiConfigCard() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="apiKey">API Key</Label>
+              <Label htmlFor="apiKey">
+                API Key
+                {hasExistingKey && (
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    (key saved — enter a new one to replace it)
+                  </span>
+                )}
+              </Label>
               <div className="relative">
                 <KeyIcon className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -132,7 +212,7 @@ export function ApiConfigCard() {
                   type={showApiKey ? 'text' : 'password'}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="sk-..."
+                  placeholder={hasExistingKey ? '••••••••••••••••' : 'sk-…'}
                   className="pl-10 pr-10"
                 />
                 <Button
@@ -153,15 +233,19 @@ export function ApiConfigCard() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Your API key is encrypted and stored securely. We never share it
-                with third parties.
+                Your API key is encrypted with AES-256-GCM before storage. We never share it with third parties.
               </p>
             </div>
           </div>
         )}
 
-        <Button onClick={handleSave} className="w-full">
-          {isSaved ? (
+        <Button onClick={handleSave} className="w-full" disabled={isSaving}>
+          {isSaving ? (
+            <>
+              <Loader2Icon className="mr-2 size-4 animate-spin" />
+              Saving…
+            </>
+          ) : isSaved ? (
             <>
               <CheckIcon className="mr-2 size-4" />
               Saved!

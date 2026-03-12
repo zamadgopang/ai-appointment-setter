@@ -19,7 +19,6 @@
     "docker:run": "docker run -p 3000:3000 --env-file .env.local ai-appointment-setter",
     "docker:compose": "docker-compose up -d",
     "docker:down": "docker-compose down"
-    "lint": "next lint"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.41",

@@ -30,9 +30,31 @@ export function WidgetPreviewCard({
   const embedCode = `<script src="https://yoursite.com/widget.js" data-tenant-id="YOUR_TENANT_ID"></script>`
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(embedCode)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(embedCode).then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      }).catch(() => fallbackCopy())
+    } else {
+      fallbackCopy()
+    }
+  }
+
+  const fallbackCopy = () => {
+    const textArea = document.createElement('textarea')
+    textArea.value = embedCode
+    textArea.style.position = 'fixed'
+    textArea.style.opacity = '0'
+    document.body.appendChild(textArea)
+    textArea.focus()
+    textArea.select()
+    try {
+      document.execCommand('copy')
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } finally {
+      document.body.removeChild(textArea)
+    }
   }
 
   return (

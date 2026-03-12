@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { KnowledgeBaseCard } from '@/components/agent/knowledge-base-card'
 import { CalendarIntegrationCard } from '@/components/agent/calendar-integration-card'
@@ -8,7 +9,16 @@ import { ApiConfigCard } from '@/components/agent/api-config-card'
 import { WidgetPreviewCard } from '@/components/agent/widget-preview-card'
 import { ChatWidget } from '@/components/agent/chat-widget'
 
+const VALID_TABS = ['knowledge', 'calendar', 'api', 'widget'] as const
+type TabValue = typeof VALID_TABS[number]
+
 export default function AgentSetupPage() {
+  const searchParams = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  const defaultTab: TabValue = VALID_TABS.includes(tabParam as TabValue)
+    ? (tabParam as TabValue)
+    : 'knowledge'
+
   const [greeting, setGreeting] = React.useState(
     'Hi there! How can I help you today?'
   )
@@ -26,7 +36,7 @@ export default function AgentSetupPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="knowledge" className="space-y-6">
+      <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="knowledge">Knowledge Base</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
