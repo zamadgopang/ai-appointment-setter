@@ -127,3 +127,14 @@ export function getDemoUser() {
     tenantId: '00000000-0000-0000-0000-000000000001',
   };
 }
+
+/**
+ * Check if the current request is a demo session
+ */
+export async function isDemoUser(request?: NextRequest) {
+  if (env.ENABLE_DEMO_MODE) return true;
+  if (!request) return false;
+  
+  const cookieStore = await cookies();
+  return cookieStore.get('demo_session')?.value === '1';
+}
