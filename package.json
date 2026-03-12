@@ -7,6 +7,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"No tests configured yet\" && exit 0",
+    "test:watch": "echo \"No tests configured yet\" && exit 0",
+    "test:coverage": "echo \"No tests configured yet\" && exit 0",
+    "test:e2e": "echo \"No E2E tests configured yet\" && exit 0",
+    "db:migrate": "echo \"Run migrations in Supabase dashboard or use: npx supabase db push\"",
+    "db:seed": "echo \"Run seed files in Supabase SQL editor\"",
+    "docker:build": "docker build -t ai-appointment-setter .",
+    "docker:run": "docker run -p 3000:3000 --env-file .env.local ai-appointment-setter",
+    "docker:compose": "docker-compose up -d",
+    "docker:down": "docker-compose down"
     "lint": "next lint"
   },
   "dependencies": {

@@ -1,6 +1,49 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { requireAuth, getDemoUser } from '@/lib/auth'
+import { knowledgeDocumentSchema, uuidSchema } from '@/lib/validations'
+import { rateLimit } from '@/lib/rate-limit'
+import { env } from '@/lib/env'
 
+export async function POST(req: NextRequest) {
+  try {
+    // Authentication
+    let tenantId: string
+    let userId: string
+    let useAdmin = false
+
+    if (env.ENABLE_DEMO_MODE) {
+      const demo = getDemoUser()
+      tenantId = demo.tenantId
+      userId = demo.id
+      useAdmin = true  // Use admin client to bypass RLS in demo mode
+    } else {
+      const { error, tenantId: authTenantId, user } = await requireAuth(req)
+      if (error) return error
+      tenantId = authTenantId!
+      userId = user!.id
+    }
+
+    // Rate limiting
+    const rateLimitResult = rateLimit(`knowledge-upload:${userId}`, 10, 60000) // 10 uploads per minute
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many requests', retryAfter: rateLimitResult.reset },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': rateLimitResult.remaining.toString(),
+            'X-RateLimit-Reset': rateLimitResult.reset.toString(),
+          }
+        }
+      )
+    }
+
+    // Parse and validate request body
+    const body = await req.json()
+    const validatedData = knowledgeDocumentSchema.parse(body)
 // Demo tenant UUID - in production this would come from auth session
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001'
 const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000'
@@ -47,38 +90,22 @@ export async function POST(req: Request) {
     // In production, this would come from the authenticated user's session
     const tenantId = DEMO_TENANT_ID
 
-    // First, ensure we have a tenant record (for demo purposes)
-    const { data: existingTenant } = await supabase
-      .from('tenants')
-      .select('id')
-      .eq('id', tenantId)
-      .single()
-
-    if (!existingTenant) {
-      // Create a demo tenant if it doesn't exist
-      // In production, tenants would be created during user signup
-      const { error: tenantError } = await supabase.from('tenants').insert({
-        id: tenantId,
-        user_id: DEMO_USER_ID,
-        name: 'Demo Tenant',
-        plan_type: 'managed',
-      })
-
-      if (tenantError) {
-        console.error('Error creating tenant:', tenantError)
-        // Continue anyway for demo
-      }
-    }
+    // Use admin client in demo mode to bypass RLS
+    const supabase = useAdmin ? createAdminClient() : await createClient()
 
     // Insert the knowledge document
     const { data, error } = await supabase
       .from('business_knowledge')
       .insert({
         tenant_id: tenantId,
+        file_name: validatedData.fileName,
+        content: validatedData.content,
+        file_size: validatedData.fileSize,
+        file_type: validatedData.fileType,
         file_name: sanitizedFileName,
         content: content,
       })
-      .select('id')
+      .select('id, file_name, created_at')
       .single()
 
     if (error) {
@@ -91,11 +118,19 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      id: data.id,
+      document: data,
       message: 'Document uploaded successfully',
     })
   } catch (error) {
     console.error('Knowledge upload error:', error)
+
+    if (error instanceof Error && error.name === 'ZodError') {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.message },
+        { status: 400 }
+      )
+    }
+
     
     // Handle JSON parse errors
     if (error instanceof SyntaxError) {
@@ -112,6 +147,7 @@ export async function POST(req: Request) {
   }
 }
 
+export async function DELETE(req: NextRequest) {
 // Helper to validate UUID format
 function isValidUUID(str: string): boolean {
   const uuidRegex =
@@ -121,6 +157,19 @@ function isValidUUID(str: string): boolean {
 
 export async function DELETE(req: Request) {
   try {
+    // Authentication
+    let tenantId: string
+    let useAdmin = false
+
+    if (env.ENABLE_DEMO_MODE) {
+      tenantId = getDemoUser().tenantId
+      useAdmin = true
+    } else {
+      const { error, tenantId: authTenantId } = await requireAuth(req)
+      if (error) return error
+      tenantId = authTenantId!
+    }
+
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
 
@@ -131,6 +180,10 @@ export async function DELETE(req: Request) {
       )
     }
 
+    // Validate UUID format
+    const validatedId = uuidSchema.parse(id)
+
+    const supabase = useAdmin ? createAdminClient() : await createClient()
     // Validate UUID format to prevent injection
     if (!isValidUUID(id)) {
       return NextResponse.json(
@@ -141,10 +194,12 @@ export async function DELETE(req: Request) {
 
     const supabase = await createClient()
 
+    // Delete only if owned by the tenant
     const { error } = await supabase
       .from('business_knowledge')
       .delete()
-      .eq('id', id)
+      .eq('id', validatedId)
+      .eq('tenant_id', tenantId)
 
     if (error) {
       console.error('Error deleting knowledge:', error)
@@ -160,6 +215,14 @@ export async function DELETE(req: Request) {
     })
   } catch (error) {
     console.error('Knowledge delete error:', error)
+
+    if (error instanceof Error && error.name === 'ZodError') {
+      return NextResponse.json(
+        { error: 'Invalid document ID' },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -167,14 +230,26 @@ export async function DELETE(req: Request) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient()
-    const tenantId = DEMO_TENANT_ID
+    // Authentication
+    let tenantId: string
+    let useAdmin = false
+
+    if (env.ENABLE_DEMO_MODE) {
+      tenantId = getDemoUser().tenantId
+      useAdmin = true
+    } else {
+      const { error, tenantId: authTenantId } = await requireAuth(req)
+      if (error) return error
+      tenantId = authTenantId!
+    }
+
+    const supabase = useAdmin ? createAdminClient() : await createClient()
 
     const { data, error } = await supabase
       .from('business_knowledge')
-      .select('id, file_name, created_at')
+      .select('id, file_name, file_size, file_type, created_at')
       .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
 
