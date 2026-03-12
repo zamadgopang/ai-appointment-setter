@@ -40,8 +40,9 @@ export async function middleware(request: NextRequest) {
       request.nextUrl.pathname.startsWith('/analytics') ||
       request.nextUrl.pathname.startsWith('/settings')) {
 
-    // Allow demo mode if enabled
-    if (process.env.ENABLE_DEMO_MODE === 'true') {
+    // Allow demo mode if enabled via env flag or demo session cookie
+    const hasDemoSession = request.cookies.get('demo_session')?.value === '1'
+    if (process.env.ENABLE_DEMO_MODE === 'true' || hasDemoSession) {
       return response
     }
 
