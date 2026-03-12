@@ -5,16 +5,41 @@ import { createClient } from '@/lib/supabase/server'
 const DEMO_TENANT_ID = '00000000-0000-0000-0000-000000000001'
 const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000'
 
+// Maximum file size in bytes (10MB)
+const MAX_CONTENT_SIZE = 10 * 1024 * 1024
+
 export async function POST(req: Request) {
   try {
-    const { fileName, content } = await req.json()
+    const body = await req.json()
+    const { fileName, content } = body
 
-    if (!fileName || !content) {
+    // Validate required fields
+    if (!fileName || typeof fileName !== 'string') {
       return NextResponse.json(
-        { error: 'fileName and content are required' },
+        { error: 'fileName is required and must be a string' },
         { status: 400 }
       )
     }
+
+    if (!content || typeof content !== 'string') {
+      return NextResponse.json(
+        { error: 'content is required and must be a string' },
+        { status: 400 }
+      )
+    }
+
+    // Validate file size
+    if (content.length > MAX_CONTENT_SIZE) {
+      return NextResponse.json(
+        { error: 'Content exceeds maximum size of 10MB' },
+        { status: 400 }
+      )
+    }
+
+    // Sanitize filename
+    const sanitizedFileName = fileName
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .substring(0, 255)
 
     const supabase = await createClient()
 
@@ -50,7 +75,7 @@ export async function POST(req: Request) {
       .from('business_knowledge')
       .insert({
         tenant_id: tenantId,
-        file_name: fileName,
+        file_name: sanitizedFileName,
         content: content,
       })
       .select('id')
@@ -71,11 +96,27 @@ export async function POST(req: Request) {
     })
   } catch (error) {
     console.error('Knowledge upload error:', error)
+    
+    // Handle JSON parse errors
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
+}
+
+// Helper to validate UUID format
+function isValidUUID(str: string): boolean {
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return uuidRegex.test(str)
 }
 
 export async function DELETE(req: Request) {
@@ -86,6 +127,14 @@ export async function DELETE(req: Request) {
     if (!id) {
       return NextResponse.json(
         { error: 'Document ID is required' },
+        { status: 400 }
+      )
+    }
+
+    // Validate UUID format to prevent injection
+    if (!isValidUUID(id)) {
+      return NextResponse.json(
+        { error: 'Invalid document ID format' },
         { status: 400 }
       )
     }
