@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireAuth, getDemoUser } from '@/lib/auth'
+import { requireAuth, getDemoUser, isDemoUser } from '@/lib/auth'
 import { knowledgeDocumentSchema, uuidSchema } from '@/lib/validations'
 import { rateLimit } from '@/lib/rate-limit'
 import { env } from '@/lib/env'
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     let userId: string
     let useAdmin = false
 
-    if (env.ENABLE_DEMO_MODE) {
+    if (await isDemoUser(req)) {
       const demo = getDemoUser()
       tenantId = demo.tenantId
       userId = demo.id
@@ -110,7 +110,7 @@ export async function DELETE(req: NextRequest) {
     let tenantId: string
     let useAdmin = false
 
-    if (env.ENABLE_DEMO_MODE) {
+    if (await isDemoUser(req)) {
       tenantId = getDemoUser().tenantId
       useAdmin = true
     } else {
@@ -173,7 +173,7 @@ export async function GET(req: NextRequest) {
     let tenantId: string
     let useAdmin = false
 
-    if (env.ENABLE_DEMO_MODE) {
+    if (await isDemoUser(req)) {
       tenantId = getDemoUser().tenantId
       useAdmin = true
     } else {

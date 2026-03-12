@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { requireAuth, getDemoUser } from '@/lib/auth'
+import { requireAuth, getDemoUser, isDemoUser } from '@/lib/auth'
 import { env } from '@/lib/env'
 
 /**
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     let tenantId: string
     let useAdmin = false
 
-    if (env.ENABLE_DEMO_MODE) {
+    if (await isDemoUser(req)) {
       tenantId = getDemoUser().tenantId
       useAdmin = true
     } else {
