@@ -2,50 +2,81 @@
 
 import * as React from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { Suspense } from 'react'
-import { SparklesIcon, EyeIcon, EyeOffIcon, Loader2Icon, ZapIcon } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { SparklesIcon, EyeIcon, EyeOffIcon, Loader2Icon, ArrowRightIcon, CheckIcon } from 'lucide-react'
 import { createBrowserClient } from '@supabase/ssr'
 
-function LoginContent() {
+const benefits = [
+  'Free forever with your own API key',
+  '2-minute setup, no credit card required',
+  'Google Calendar sync included',
+  'AI-powered appointment scheduling',
+]
+
+export default function SignUpPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirectTo') || '/agent-setup'
   const [loading, setLoading] = React.useState(false)
-  const [demoLoading, setDemoLoading] = React.useState(false)
+  const [name, setName] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [showPassword, setShowPassword] = React.useState(false)
   const [error, setError] = React.useState('')
+  const [success, setSuccess] = React.useState(false)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  async function handleEmailLogin(e: React.FormEvent) {
+  async function handleSignUp(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
+
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
-      if (error) {
-        setError(error.message)
-      } else {
-        router.push(redirectTo)
+      // 1. Create the user account
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: name },
+        },
+      })
+
+      if (signUpError) {
+        setError(signUpError.message)
+        return
+      }
+
+      if (data.user) {
+        // 2. Create tenant via API (this will also create subscription, widget config, etc.)
+        await fetch('/api/tenant/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name.trim() || 'My Business' }),
+        }).catch(() => {})
+
+        setSuccess(true)
+        // If email confirmation is required, show message.
+        // Otherwise, redirect to dashboard.
+        if (data.session) {
+          router.push('/agent-setup')
+        }
       }
     } catch {
-      setError('An unexpected error occurred')
+      setError('An unexpected error occurred. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
-  async function handleGoogleLogin() {
+  async function handleGoogleSignUp() {
     setLoading(true)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}/api/auth/google/callback` },
+      options: {
+        redirectTo: `${window.location.origin}/api/auth/google/callback`,
+      },
     })
     if (error) {
       setError(error.message)
@@ -53,15 +84,33 @@ function LoginContent() {
     }
   }
 
-  async function handleDemoLogin() {
-    setDemoLoading(true)
-    await fetch('/api/auth/demo', { method: 'POST' })
-    router.push(redirectTo)
+  if (success) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+        <div className="mx-auto max-w-md space-y-6 text-center">
+          <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-primary/10">
+            <CheckIcon className="size-8 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold">Check Your Email</h1>
+          <p className="text-muted-foreground">
+            We&apos;ve sent a verification link to <strong>{email}</strong>.
+            Click the link to activate your account and start scheduling.
+          </p>
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+          >
+            Go to Login
+            <ArrowRightIcon className="size-4" />
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="flex min-h-screen">
-      {/* Left: Branding Panel */}
+      {/* Left: Benefits Panel */}
       <div className="relative hidden w-1/2 items-center justify-center bg-primary/5 lg:flex">
         <div className="absolute inset-0 dot-pattern" />
         <div className="relative z-10 max-w-md space-y-8 p-12">
@@ -76,37 +125,47 @@ function LoginContent() {
 
           <div>
             <h2 className="text-3xl font-bold tracking-tight">
-              Welcome back
+              Start booking appointments with AI
             </h2>
             <p className="mt-3 text-muted-foreground">
-              Sign in to manage your AI assistant, view analytics, and configure your scheduling widget.
+              Join thousands of businesses automating their scheduling.
             </p>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-                <SparklesIcon className="size-5 text-primary" />
+          <ul className="space-y-4">
+            {benefits.map((benefit) => (
+              <li key={benefit} className="flex items-center gap-3">
+                <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <CheckIcon className="size-3.5 text-primary" />
+                </div>
+                <span className="text-sm font-medium">{benefit}</span>
+              </li>
+            ))}
+          </ul>
+
+          {/* Widget Preview */}
+          <div className="overflow-hidden rounded-xl border bg-card shadow-lg">
+            <div className="flex items-center gap-2 bg-primary px-4 py-3">
+              <div className="size-8 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+                <SparklesIcon className="size-4 text-primary-foreground" />
               </div>
-              <div>
-                <p className="text-sm font-medium">AI-Powered Scheduling</p>
-                <p className="text-xs text-muted-foreground">24/7 automated appointments</p>
-              </div>
+              <span className="text-sm font-medium text-primary-foreground">AI Assistant</span>
             </div>
-            <div className="flex items-center gap-3 rounded-xl border bg-card p-4 shadow-sm">
-              <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10">
-                <ZapIcon className="size-5 text-primary" />
+            <div className="p-3 space-y-2">
+              <div className="inline-block rounded-lg rounded-tl-none bg-secondary px-3 py-1.5 text-xs">
+                Hi! I can help schedule your appointment 😊
               </div>
-              <div>
-                <p className="text-sm font-medium">Smart Analytics</p>
-                <p className="text-xs text-muted-foreground">Track conversion & performance</p>
+              <div className="flex justify-end">
+                <div className="inline-block rounded-lg rounded-tr-none bg-primary px-3 py-1.5 text-xs text-primary-foreground">
+                  I need a consultation Thursday
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right: Login Form */}
+      {/* Right: Sign-Up Form */}
       <div className="flex w-full items-center justify-center px-4 py-12 lg:w-1/2">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile logo */}
@@ -122,18 +181,18 @@ function LoginContent() {
           </div>
 
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Sign in to your account</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Don&apos;t have an account?{' '}
-              <Link href="/signup" className="font-medium text-primary hover:underline">
-                Create one free
+              Already have an account?{' '}
+              <Link href="/login" className="font-medium text-primary hover:underline">
+                Sign in
               </Link>
             </p>
           </div>
 
           {/* Google OAuth */}
           <button
-            onClick={handleGoogleLogin}
+            onClick={handleGoogleSignUp}
             disabled={loading}
             className="flex w-full items-center justify-center gap-3 rounded-xl border bg-card px-4 py-3 text-sm font-medium shadow-sm transition-all hover:bg-secondary hover:shadow-md disabled:opacity-60"
           >
@@ -148,12 +207,27 @@ function LoginContent() {
 
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">or sign in with email</span>
+            <span className="text-xs text-muted-foreground">or sign up with email</span>
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          {/* Email / Password */}
-          <form onSubmit={handleEmailLogin} className="space-y-4">
+          {/* Email Form */}
+          <form onSubmit={handleSignUp} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="name" className="text-sm font-medium">
+                Business Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                placeholder="E.g. Bright Smiles Dental"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                className="w-full rounded-xl border bg-card px-4 py-3 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-shadow"
+              />
+            </div>
+
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
                 Email Address
@@ -170,22 +244,18 @@ function LoginContent() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-sm font-medium">
-                  Password
-                </label>
-                <a href="#" className="text-xs font-medium text-primary hover:underline">
-                  Forgot password?
-                </a>
-              </div>
+              <label htmlFor="password" className="text-sm font-medium">
+                Password
+              </label>
               <div className="relative">
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
+                  placeholder="At least 8 characters"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={8}
                   className="w-full rounded-xl border bg-card px-4 py-3 pr-12 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-shadow"
                 />
                 <button
@@ -212,45 +282,22 @@ function LoginContent() {
               {loading ? (
                 <Loader2Icon className="size-4 animate-spin" />
               ) : (
-                'Sign In'
+                <>
+                  Create Account
+                  <ArrowRightIcon className="size-4" />
+                </>
               )}
             </button>
           </form>
 
-          {/* Demo Login */}
-          <div className="rounded-xl border border-dashed p-4 text-center">
-            <p className="mb-2 text-xs text-muted-foreground">
-              Want to explore first?
-            </p>
-            <button
-              onClick={handleDemoLogin}
-              disabled={demoLoading}
-              className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline disabled:opacity-60"
-            >
-              {demoLoading ? (
-                <Loader2Icon className="size-3 animate-spin" />
-              ) : (
-                <ZapIcon className="size-3" />
-              )}
-              {demoLoading ? 'Starting demo...' : 'Try the demo — no account needed'}
-            </button>
-          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            By creating an account, you agree to our{' '}
+            <a href="#" className="text-primary hover:underline">Terms of Service</a>
+            {' '}and{' '}
+            <a href="#" className="text-primary hover:underline">Privacy Policy</a>.
+          </p>
         </div>
       </div>
     </div>
-  )
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <Loader2Icon className="size-6 animate-spin text-muted-foreground" />
-        </div>
-      }
-    >
-      <LoginContent />
-    </Suspense>
   )
 }

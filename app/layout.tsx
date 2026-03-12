@@ -4,9 +4,23 @@ import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'AgentSetup - AI Appointment Setter',
-  description: 'Configure your AI appointment setter agent with knowledge base uploads, calendar integration, and chat widget customization.',
-  generator: 'v0.app',
+  title: 'AppointAI — AI-Powered Appointment Scheduling Widget',
+  description:
+    'Add an intelligent appointment scheduling widget to your website in minutes. AI-powered conversations, Google Calendar sync, and customizable design. Free with your own API key.',
+  keywords: [
+    'AI appointment scheduling',
+    'chat widget',
+    'appointment booking',
+    'Google Calendar integration',
+    'AI chatbot',
+    'scheduling software',
+  ],
+  openGraph: {
+    title: 'AppointAI — AI-Powered Appointment Scheduling',
+    description:
+      'Intelligent appointment scheduling widget for any website. AI conversations, calendar sync, and beautiful design.',
+    type: 'website',
+  },
   icons: {
     icon: [
       {
@@ -33,8 +47,25 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="font-sans antialiased" suppressHydrationWarning>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
           {children}
         </ThemeProvider>
         <Analytics />

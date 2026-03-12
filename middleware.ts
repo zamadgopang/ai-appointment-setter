@@ -34,13 +34,25 @@ export async function middleware(request: NextRequest) {
   // Refresh session if it exists
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Protect dashboard routes
-  if (request.nextUrl.pathname.startsWith('/agent-setup') ||
-      request.nextUrl.pathname.startsWith('/conversations') ||
-      request.nextUrl.pathname.startsWith('/analytics') ||
-      request.nextUrl.pathname.startsWith('/settings')) {
+  // Public routes that don't need auth
+  const publicPaths = ['/', '/login', '/signup', '/pricing', '/api/widget', '/api/health', '/api/auth']
+  const isPublicRoute = publicPaths.some(path =>
+    request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + '/')
+  )
 
-    // Allow demo mode if enabled via env flag or demo session cookie
+  // Static assets and API routes that handle their own auth
+  if (isPublicRoute) {
+    return response
+  }
+
+  // Protect dashboard routes
+  const protectedPaths = ['/agent-setup', '/conversations', '/analytics', '/knowledge', '/settings']
+  const isProtectedRoute = protectedPaths.some(path =>
+    request.nextUrl.pathname === path || request.nextUrl.pathname.startsWith(path + '/')
+  )
+
+  if (isProtectedRoute) {
+    // Allow demo mode
     const hasDemoSession = request.cookies.get('demo_session')?.value === '1'
     if (process.env.ENABLE_DEMO_MODE === 'true' || hasDemoSession) {
       return response
@@ -54,11 +66,16 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Add security headers
+  response.headers.set('X-Frame-Options', 'DENY')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+
   return response
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }
