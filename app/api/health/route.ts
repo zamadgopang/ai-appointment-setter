@@ -87,22 +87,21 @@ export async function GET(): Promise<NextResponse<HealthStatus>> {
   }
 
   // Determine overall status
-  const allHealthy = Object.values(checks).every(
-    (check) => check.status === 'healthy'
-  )
-  const anyUnhealthy = Object.values(checks).some(
-    (check) => check.status === 'unhealthy'
-  )
-
+  // Environment issues are critical (unhealthy), database issues are degraded
   let overallStatus: HealthStatus['status'] = 'healthy'
-  if (anyUnhealthy) {
-    overallStatus = checks.environment.status === 'unhealthy' ? 'unhealthy' : 'degraded'
+  
+  if (checks.environment.status === 'unhealthy') {
+    // Missing environment variables is critical
+    overallStatus = 'unhealthy'
+  } else if (checks.database.status === 'unhealthy') {
+    // Database issues are degraded (app can still partially function)
+    overallStatus = 'degraded'
   }
 
   const healthResponse: HealthStatus = {
     status: overallStatus,
     timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || '0.1.0',
+    version: process.env.npm_package_version || '1.0.0',
     checks,
   }
 

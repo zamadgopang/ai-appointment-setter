@@ -10,9 +10,10 @@ export async function middleware(request: NextRequest) {
   if (!isPublicApiRoute) {
     try {
       return await updateSession(request)
-    } catch {
-      // If session refresh fails, continue without auth
+    } catch (error) {
+      // Log the error for debugging but continue without auth
       // The individual route handlers will check auth as needed
+      console.error('Middleware session refresh error:', error)
       return NextResponse.next()
     }
   }

@@ -7,12 +7,12 @@ const __dirname = dirname(__filename)
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   typescript: {
-    // In production, type errors should be caught during CI/CD
-    ignoreBuildErrors: process.env.NODE_ENV !== 'production',
+    // Type errors should be caught during CI/CD, not during production build
+    ignoreBuildErrors: false,
   },
   images: {
     // Enable image optimization in production
-    unoptimized: process.env.NODE_ENV !== 'production',
+    unoptimized: false,
   },
   turbopack: {
     root: __dirname,
@@ -41,14 +41,10 @@ const nextConfig = {
           },
         ],
       },
-      // Allow embedding for the chat widget
+      // Allow embedding for the chat widget (remove X-Frame-Options)
       {
         source: '/api/widget/:path*',
         headers: [
-          {
-            key: 'X-Frame-Options',
-            value: 'ALLOWALL',
-          },
           {
             key: 'Access-Control-Allow-Origin',
             value: '*',

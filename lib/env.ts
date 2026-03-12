@@ -21,7 +21,7 @@ const serverEnvSchema = z.object({
   GOOGLE_REDIRECT_URI: z.string().url().optional(),
   
   // Application settings
-  NEXT_PUBLIC_APP_URL: z.string().url().optional().default('http://localhost:3000'),
+  NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
   
   // Security
   ENCRYPTION_SECRET: z.string().optional(),
@@ -36,7 +36,7 @@ const serverEnvSchema = z.object({
 const clientEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url('Invalid Supabase URL'),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'Supabase anon key is required'),
-  NEXT_PUBLIC_APP_URL: z.string().url().optional().default('http://localhost:3000'),
+  NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
 })
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>
