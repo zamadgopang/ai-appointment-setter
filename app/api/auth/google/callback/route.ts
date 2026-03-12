@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get('state')
   const error = searchParams.get('error')
 
-  const appUrl = env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const appUrl = env.NEXT_PUBLIC_APP_URL || 'https://app.zamdev.me'
   const calendarTab = `${appUrl}/agent-setup?tab=calendar`
 
   // User denied access or OAuth error
